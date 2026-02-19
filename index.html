@@ -240,7 +240,19 @@
     // ======== 新規作成モーダル ========
     const NewCustomerModal = ({ onClose, onCreate }) => {
       const [form, setForm] = useState({ staffName: '', belong: '', customerName: '' });
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState('');
       const valid = form.staffName.trim() && form.belong.trim() && form.customerName.trim();
+
+      const handleCreate = async () => {
+        if (!valid) return;
+        setLoading(true);
+        setError('');
+        const err = await onCreate(form);
+        if (err) setError(err);
+        setLoading(false);
+      };
+
       return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
@@ -261,15 +273,23 @@
                 <label className="block text-sm font-bold text-slate-700 mb-1">お客様名 <span className="text-red-500">*</span></label>
                 <input className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="例：田中 様" value={form.customerName} onChange={e => setForm(f => ({...f, customerName: e.target.value}))} />
               </div>
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-red-700 text-xs font-bold">エラー: {error}</p>
+                  {error.includes('relation') && (
+                    <p className="text-red-600 text-xs mt-1">※ Supabaseでテーブルが作成されていない可能性があります。SQL Editorでテーブル作成SQLを実行してください。</p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="px-6 pb-6 flex gap-3">
-              <button onClick={onClose} className="flex-1 py-3 border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition">キャンセル</button>
+              <button onClick={onClose} disabled={loading} className="flex-1 py-3 border border-slate-300 rounded-xl font-bold text-slate-600 hover:bg-slate-50 transition disabled:opacity-50">キャンセル</button>
               <button
-                onClick={() => valid && onCreate(form)}
-                disabled={!valid}
-                className={`flex-1 py-3 rounded-xl font-bold text-white transition flex items-center justify-center gap-2 ${valid ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-300 cursor-not-allowed'}`}
+                onClick={handleCreate}
+                disabled={!valid || loading}
+                className={`flex-1 py-3 rounded-xl font-bold text-white transition flex items-center justify-center gap-2 ${valid && !loading ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-300 cursor-not-allowed'}`}
               >
-                <IcPlus /> 作成する
+                {loading ? '作成中...' : <><IcPlus /> 作成する</>}
               </button>
             </div>
           </div>
@@ -1056,12 +1076,17 @@
           customer_name: customerName,
           karte_data:    emptyKarteData(),
         }).select().single();
+        if (error) {
+          console.error('Supabase insert error:', error);
+          return error.message; // エラー文字列をモーダルへ返す
+        }
         if (data) {
           setCustomers(prev => [fromDB(data), ...prev]);
           setCurrentId(data.id);
           setShowNewModal(false);
           setScreen('edit');
         }
+        return null;
       };
 
       const handleEdit = (id) => { setCurrentId(id); setScreen('edit'); };
