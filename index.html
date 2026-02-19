@@ -8,6 +8,7 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     @media print {
       .no-print { display: none !important; }
@@ -48,6 +49,11 @@
   <div id="root"></div>
   <script type="text/babel">
     const { useState, useEffect, useCallback } = React;
+
+    // ======== Supabase 初期化 ========
+    const SUPABASE_URL = 'https://nknrarqdmkddiybnqfjj.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_Xr6ShDGUY04XTDs5tT5_lg_Y0ulKidY';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     // ======== アイコン ========
     const IcMap    = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>;
@@ -176,6 +182,61 @@
       );
     };
 
+    // ======== ログイン画面 ========
+    const LoginScreen = () => {
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [isSignUp, setIsSignUp] = useState(false);
+      const [error, setError] = useState('');
+      const [loading, setLoading] = useState(false);
+
+      const handleSubmit = async () => {
+        if (!email || !password) return;
+        setLoading(true);
+        setError('');
+        const { error: err } = isSignUp
+          ? await sb.auth.signUp({ email, password })
+          : await sb.auth.signInWithPassword({ email, password });
+        if (err) setError(err.message);
+        setLoading(false);
+      };
+
+      const handleKey = (e) => { if (e.key === 'Enter') handleSubmit(); };
+
+      return (
+        <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="bg-slate-800 text-white px-6 py-8 text-center">
+              <div className="text-4xl mb-2">🧭</div>
+              <h1 className="text-2xl font-black tracking-tight">顧客カルテ統合システム</h1>
+              <p className="text-slate-300 text-sm mt-1">G-House 営業部専用ツール</p>
+            </div>
+            <div className="p-6 space-y-4">
+              <h2 className="text-center font-black text-slate-700 text-lg">{isSignUp ? '新規アカウント登録' : 'ログイン'}</h2>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">メールアドレス</label>
+                <input type="email" className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="example@ghouse.jp" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={handleKey} />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">パスワード{isSignUp && <span className="text-slate-400 font-normal text-xs ml-1">（6文字以上）</span>}</label>
+                <input type="password" className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={handleKey} />
+              </div>
+              {error && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg p-3">{error}</p>}
+              {isSignUp && <p className="text-xs text-slate-500 bg-blue-50 border border-blue-200 rounded-lg p-3">登録後、入力したメールアドレスに確認メールが届く場合があります。</p>}
+              <button onClick={handleSubmit} disabled={loading || !email || !password}
+                className={`w-full py-3 rounded-xl font-black text-white transition ${loading || !email || !password ? 'bg-slate-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-md'}`}>
+                {loading ? '処理中...' : isSignUp ? '登録する' : 'ログイン'}
+              </button>
+              <button onClick={() => { setIsSignUp(!isSignUp); setError(''); }}
+                className="w-full py-2 text-sm text-slate-500 hover:text-blue-600 transition font-bold">
+                {isSignUp ? '← ログインに戻る' : 'アカウントをお持ちでない方はこちら →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
     // ======== 新規作成モーダル ========
     const NewCustomerModal = ({ onClose, onCreate }) => {
       const [form, setForm] = useState({ staffName: '', belong: '', customerName: '' });
@@ -231,7 +292,7 @@
     );
 
     // ======== 顧客一覧画面 ========
-    const CustomerList = ({ customers, onNew, onEdit, onDelete }) => {
+    const CustomerList = ({ customers, onNew, onEdit, onDelete, onLogout, userEmail, dbLoading }) => {
       const [search, setSearch] = useState('');
       const [deleteTarget, setDeleteTarget] = useState(null);
       const filtered = customers.filter(c =>
@@ -258,9 +319,16 @@
                     <p className="text-sm text-slate-500 mt-0.5">G-House 営業部専用ツール</p>
                   </div>
                 </div>
-                <button onClick={onNew} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 transition shadow-md">
-                  <IcPlus /> 新規カルテ作成
-                </button>
+                <div className="flex items-center gap-2">
+                  <div className="text-right hidden md:block">
+                    <p className="text-xs text-slate-400">ログイン中</p>
+                    <p className="text-sm font-bold text-slate-600">{userEmail}</p>
+                  </div>
+                  <button onClick={onLogout} className="border border-slate-300 text-slate-600 px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-50 transition">ログアウト</button>
+                  <button onClick={onNew} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 transition shadow-md">
+                    <IcPlus /> 新規カルテ作成
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -275,7 +343,9 @@
             </div>
 
             {/* 件数 */}
-            <p className="text-xs text-slate-400 mb-3 px-1">{filtered.length} 件のカルテ</p>
+            <p className="text-xs text-slate-400 mb-3 px-1">
+              {dbLoading ? '読み込み中...' : `${filtered.length} 件のカルテ`}
+            </p>
 
             {/* 一覧 */}
             {filtered.length === 0 ? (
@@ -934,50 +1004,100 @@
 
     // ======== ルートアプリ ========
     const App = () => {
-      const STORAGE_KEY = 'ghouse_customers_v1';
-      const [screen, setScreen] = useState('list'); // 'list' | 'edit'
-      const [customers, setCustomers] = useState(() => {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-        catch { return []; }
-      });
-      const [currentId, setCurrentId] = useState(null);
+      const [session, setSession]       = useState(null);
+      const [authLoading, setAuthLoading] = useState(true);
+      const [screen, setScreen]         = useState('list');
+      const [customers, setCustomers]   = useState([]);
+      const [currentId, setCurrentId]   = useState(null);
       const [showNewModal, setShowNewModal] = useState(false);
+      const [dbLoading, setDbLoading]   = useState(false);
 
+      // 認証状態を監視
       useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(customers));
-      }, [customers]);
+        sb.auth.getSession().then(({ data: { session } }) => {
+          setSession(session);
+          setAuthLoading(false);
+        });
+        const { data: { subscription } } = sb.auth.onAuthStateChange((_e, session) => {
+          setSession(session);
+          if (!session) { setCustomers([]); setScreen('list'); }
+        });
+        return () => subscription.unsubscribe();
+      }, []);
 
-      const handleCreate = ({ staffName, belong, customerName }) => {
-        const newCustomer = {
-          id: Date.now().toString(),
-          staffName, belong, customerName,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          karteData: emptyKarteData(),
-        };
-        setCustomers(prev => [newCustomer, ...prev]);
-        setCurrentId(newCustomer.id);
-        setShowNewModal(false);
-        setScreen('edit');
+      // ログイン後にカルテ一覧を取得
+      useEffect(() => {
+        if (!session) return;
+        loadCustomers();
+      }, [session]);
+
+      const fromDB = (row) => ({
+        id:           row.id,
+        staffName:    row.staff_name,
+        belong:       row.belong,
+        customerName: row.customer_name,
+        createdAt:    row.created_at,
+        updatedAt:    row.updated_at,
+        karteData:    row.karte_data || emptyKarteData(),
+      });
+
+      const loadCustomers = async () => {
+        setDbLoading(true);
+        const { data } = await sb.from('customers').select('*').order('updated_at', { ascending: false });
+        if (data) setCustomers(data.map(fromDB));
+        setDbLoading(false);
       };
 
-      const handleEdit = (id) => {
-        setCurrentId(id);
-        setScreen('edit');
+      const handleCreate = async ({ staffName, belong, customerName }) => {
+        const { data, error } = await sb.from('customers').insert({
+          staff_id:      session.user.id,
+          staff_name:    staffName,
+          belong,
+          customer_name: customerName,
+          karte_data:    emptyKarteData(),
+        }).select().single();
+        if (data) {
+          setCustomers(prev => [fromDB(data), ...prev]);
+          setCurrentId(data.id);
+          setShowNewModal(false);
+          setScreen('edit');
+        }
       };
 
-      const handleSave = (id, karteData) => {
-        setCustomers(prev => prev.map(c => c.id === id ? { ...c, karteData, updatedAt: new Date().toISOString() } : c));
+      const handleEdit = (id) => { setCurrentId(id); setScreen('edit'); };
+
+      const handleSave = async (id, karteData) => {
+        const { error } = await sb.from('customers').update({
+          karte_data:  karteData,
+          updated_at:  new Date().toISOString(),
+        }).eq('id', id);
+        if (!error) {
+          setCustomers(prev => prev.map(c => c.id === id
+            ? { ...c, karteData, updatedAt: new Date().toISOString() } : c));
+        }
       };
 
-      const handleDelete = (id) => {
-        setCustomers(prev => prev.filter(c => c.id !== id));
+      const handleDelete = async (id) => {
+        const { error } = await sb.from('customers').delete().eq('id', id);
+        if (!error) setCustomers(prev => prev.filter(c => c.id !== id));
       };
 
-      const handleBack = () => {
+      const handleBack = () => { setScreen('list'); setCurrentId(null); };
+
+      const handleLogout = async () => {
+        await sb.auth.signOut();
+        setCustomers([]);
         setScreen('list');
         setCurrentId(null);
       };
+
+      if (authLoading) return (
+        <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+          <p className="text-slate-500 font-bold text-sm">読み込み中...</p>
+        </div>
+      );
+
+      if (!session) return <LoginScreen />;
 
       const currentCustomer = customers.find(c => c.id === currentId);
 
@@ -990,6 +1110,9 @@
               onNew={() => setShowNewModal(true)}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onLogout={handleLogout}
+              userEmail={session.user.email}
+              dbLoading={dbLoading}
             />
           )}
           {screen === 'edit' && currentCustomer && (
