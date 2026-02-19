@@ -601,10 +601,15 @@
           [tab]: { ...prev[tab], [listName]: prev[tab][listName].map(item => item.id === id ? { ...item, note: val } : item) }
         }));
 
-      const handleSave = () => {
-        onSave(customer.id, data);
-        setSaveMsg('保存しました ✅');
-        setTimeout(() => setSaveMsg(''), 2500);
+      const handleSave = async () => {
+        setSaveMsg('保存中...');
+        const err = await onSave(customer.id, data);
+        if (err) {
+          setSaveMsg('保存失敗 ❌ ' + err);
+        } else {
+          setSaveMsg('保存しました ✅');
+        }
+        setTimeout(() => setSaveMsg(''), 3000);
       };
 
       const th = "border border-slate-300 bg-slate-100 p-1 text-[10px] font-bold text-center";
@@ -1307,10 +1312,10 @@
           karte_data:  karteData,
           updated_at:  new Date().toISOString(),
         }).eq('id', id);
-        if (!error) {
-          setCustomers(prev => prev.map(c => c.id === id
-            ? { ...c, karteData, updatedAt: new Date().toISOString() } : c));
-        }
+        if (error) return error.message;
+        setCustomers(prev => prev.map(c => c.id === id
+          ? { ...c, karteData, updatedAt: new Date().toISOString() } : c));
+        return null;
       };
 
       const handleDelete = async (id) => {
