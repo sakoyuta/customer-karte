@@ -548,10 +548,29 @@
     };
 
     // ======== カルテ編集画面 ========
-    const KarteEditor = ({ customer, onBack, onSave }) => {
+    const KarteEditor = ({ customer, onBack, onSave, onUpdateInfo }) => {
       const [activeTab, setActiveTab] = useState('flow');
       const [data, setData] = useState(customer.karteData);
       const [saveMsg, setSaveMsg] = useState('');
+      const [infoEdit, setInfoEdit] = useState(false);
+      const [infoForm, setInfoForm] = useState({ staffName: customer.staffName, belong: customer.belong, customerName: customer.customerName });
+      const [infoSaving, setInfoSaving] = useState(false);
+      const [infoErr, setInfoErr] = useState('');
+
+      const handleSaveInfo = async () => {
+        if (!infoForm.staffName.trim() || !infoForm.belong.trim() || !infoForm.customerName.trim()) return;
+        setInfoSaving(true); setInfoErr('');
+        const err = await onUpdateInfo(customer.id, infoForm);
+        if (err) setInfoErr(err);
+        else setInfoEdit(false);
+        setInfoSaving(false);
+      };
+
+      const cancelInfoEdit = () => {
+        setInfoForm({ staffName: customer.staffName, belong: customer.belong, customerName: customer.customerName });
+        setInfoErr('');
+        setInfoEdit(false);
+      };
 
       const updateNested = (tab, cat, field, val) =>
         setData(prev => ({ ...prev, [tab]: { ...prev[tab], [cat]: { ...prev[tab][cat], [field]: val } } }));
@@ -608,10 +627,47 @@
                   <button onClick={onBack} className="flex items-center gap-1.5 text-slate-600 hover:text-slate-800 font-bold text-sm border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50 transition">
                     <IcBack /> 一覧へ戻る
                   </button>
-                  <div>
-                    <p className="text-xs text-slate-400">{customer.belong}　担当: {customer.staffName}</p>
-                    <h1 className="text-xl font-black text-slate-800">{customer.customerName} 様のカルテ</h1>
-                  </div>
+                  {infoEdit ? (
+                    <div className="space-y-2">
+                      <div className="flex gap-2 flex-wrap items-center">
+                        <input
+                          value={infoForm.customerName}
+                          onChange={e => setInfoForm(p => ({ ...p, customerName: e.target.value }))}
+                          className="border border-slate-300 rounded-lg px-2 py-1 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-500 w-40"
+                          placeholder="お客様名"
+                        />
+                        <input
+                          value={infoForm.belong}
+                          onChange={e => setInfoForm(p => ({ ...p, belong: e.target.value }))}
+                          className="border border-slate-300 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-500 w-28"
+                          placeholder="拠点"
+                        />
+                        <input
+                          value={infoForm.staffName}
+                          onChange={e => setInfoForm(p => ({ ...p, staffName: e.target.value }))}
+                          className="border border-slate-300 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-blue-500 w-28"
+                          placeholder="担当者名"
+                        />
+                      </div>
+                      {infoErr && <p className="text-red-500 text-xs">{infoErr}</p>}
+                      <div className="flex gap-2">
+                        <button onClick={handleSaveInfo} disabled={infoSaving} className="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50 transition">
+                          {infoSaving ? '保存中...' : '保存する'}
+                        </button>
+                        <button onClick={cancelInfoEdit} className="border border-slate-300 px-3 py-1 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition">キャンセル</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-xs text-slate-400">{customer.belong}　担当: {customer.staffName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <h1 className="text-xl font-black text-slate-800">{customer.customerName} 様のカルテ</h1>
+                        <button onClick={() => { setInfoForm({ staffName: customer.staffName, belong: customer.belong, customerName: customer.customerName }); setInfoEdit(true); }} className="text-slate-400 hover:text-slate-600 transition p-1" title="基本情報を編集">
+                          <IcEdit />
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
                   {saveMsg && <span className="text-green-600 font-bold text-sm bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">{saveMsg}</span>}
@@ -1246,6 +1302,20 @@
         if (!error) setCustomers(prev => prev.filter(c => c.id !== id));
       };
 
+      const handleUpdateInfo = async (id, { staffName, belong, customerName }) => {
+        const { error } = await sb.from('customers').update({
+          staff_name:    staffName,
+          belong,
+          customer_name: customerName,
+          updated_at:    new Date().toISOString(),
+        }).eq('id', id);
+        if (!error) {
+          setCustomers(prev => prev.map(c => c.id === id
+            ? { ...c, staffName, belong, customerName, updatedAt: new Date().toISOString() } : c));
+        }
+        return error ? error.message : null;
+      };
+
       const handleBack = () => { setScreen('list'); setCurrentId(null); };
 
       const handleLogout = async () => {
@@ -1287,6 +1357,7 @@
               customer={currentCustomer}
               onBack={handleBack}
               onSave={handleSave}
+              onUpdateInfo={handleUpdateInfo}
             />
           )}
         </>
