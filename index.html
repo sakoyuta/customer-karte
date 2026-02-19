@@ -317,13 +317,19 @@
       const [newName, setNewName] = useState('');
       const [loading, setLoading] = useState(false);
       const [deleteTarget, setDeleteTarget] = useState(null);
+      const [addError, setAddError] = useState('');
 
       const handleAdd = async () => {
         const name = newName.trim();
         if (!name) return;
         setLoading(true);
-        await onAdd(name);
-        setNewName('');
+        setAddError('');
+        const err = await onAdd(name);
+        if (err) {
+          setAddError(err);
+        } else {
+          setNewName('');
+        }
         setLoading(false);
       };
 
@@ -342,7 +348,7 @@
                   className="flex-1 p-2.5 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="新しい拠点名を入力..."
                   value={newName}
-                  onChange={e => setNewName(e.target.value)}
+                  onChange={e => { setNewName(e.target.value); setAddError(''); }}
                   onKeyDown={e => e.key === 'Enter' && handleAdd()}
                 />
                 <button
@@ -353,6 +359,14 @@
                   {loading ? '...' : '追加'}
                 </button>
               </div>
+              {addError && (
+                <div className="mt-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  <p className="text-red-600 text-xs font-bold">{addError}</p>
+                  {addError.includes('relation') && (
+                    <p className="text-red-500 text-xs mt-0.5">※ Supabaseでbranchesテーブルが作成されていません。SQL Editorでテーブル作成SQLを実行してください。</p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* 拠点一覧 */}
@@ -1255,7 +1269,9 @@
 
       const handleAddBranch = async (name) => {
         const { data, error } = await sb.from('branches').insert({ name }).select().single();
-        if (!error && data) setBranches(prev => [...prev, data]);
+        if (error) return error.message;
+        if (data) setBranches(prev => [...prev, data]);
+        return null;
       };
 
       const handleDeleteBranch = async (id) => {
