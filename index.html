@@ -445,11 +445,6 @@
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="text-right hidden md:block">
-                    <p className="text-xs text-slate-400">ログイン中</p>
-                    <p className="text-sm font-bold text-slate-600">{userEmail}</p>
-                  </div>
-                  <button onClick={onLogout} className="border border-slate-300 text-slate-600 px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-50 transition">ログアウト</button>
                   <button onClick={onNew} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 transition shadow-md">
                     <IcPlus /> 新規カルテ作成
                   </button>
@@ -1221,8 +1216,6 @@
 
     // ======== ルートアプリ ========
     const App = () => {
-      const [session, setSession]       = useState(null);
-      const [authLoading, setAuthLoading] = useState(true);
       const [screen, setScreen]         = useState('list');
       const [customers, setCustomers]   = useState([]);
       const [branches, setBranches]     = useState([]);
@@ -1230,25 +1223,11 @@
       const [showNewModal, setShowNewModal] = useState(false);
       const [dbLoading, setDbLoading]   = useState(false);
 
-      // 認証状態を監視
+      // 起動時にカルテ一覧と拠点一覧を取得
       useEffect(() => {
-        sb.auth.getSession().then(({ data: { session } }) => {
-          setSession(session);
-          setAuthLoading(false);
-        });
-        const { data: { subscription } } = sb.auth.onAuthStateChange((_e, session) => {
-          setSession(session);
-          if (!session) { setCustomers([]); setScreen('list'); }
-        });
-        return () => subscription.unsubscribe();
-      }, []);
-
-      // ログイン後にカルテ一覧と拠点一覧を取得
-      useEffect(() => {
-        if (!session) return;
         loadCustomers();
         loadBranches();
-      }, [session]);
+      }, []);
 
       const fromDB = (row) => ({
         id:           row.id,
@@ -1339,21 +1318,6 @@
 
       const handleBack = () => { setScreen('list'); setCurrentId(null); };
 
-      const handleLogout = async () => {
-        await sb.auth.signOut();
-        setCustomers([]);
-        setScreen('list');
-        setCurrentId(null);
-      };
-
-      if (authLoading) return (
-        <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-          <p className="text-slate-500 font-bold text-sm">読み込み中...</p>
-        </div>
-      );
-
-      if (!session) return <LoginScreen />;
-
       const currentCustomer = customers.find(c => c.id === currentId);
 
       return (
@@ -1365,8 +1329,8 @@
               onNew={() => setShowNewModal(true)}
               onEdit={handleEdit}
               onDelete={handleDelete}
-              onLogout={handleLogout}
-              userEmail={session.user.email}
+              onLogout={() => {}}
+              userEmail=""
               dbLoading={dbLoading}
               branches={branches}
               onAddBranch={handleAddBranch}
