@@ -134,8 +134,9 @@
     });
 
     const emptyStatus = () => ({
-      rankA: '', rankB: '', rankC: '', rankD: '',
-      applyBuilding: '', contract: ''
+      customerStatus: '',  // '限定会員' | '建築申込' | '契約'
+      rank: '',            // 'A' | 'B' | 'C' | 'D'
+      contractDate: '',
     });
 
     const emptyEval = () => ({
@@ -433,14 +434,103 @@
       );
     };
 
+    // ======== 契約済一覧画面 ========
+    const ContractList = ({ customers, onEdit, onBack }) => {
+      const [search, setSearch] = useState('');
+      const sorted = customers
+        .filter(c => c.customerName.includes(search) || c.staffName.includes(search) || c.belong.includes(search))
+        .sort((a, b) => (b.status?.contractDate || b.updatedAt) < (a.status?.contractDate || a.updatedAt) ? 1 : -1);
+
+      return (
+        <div className="min-h-screen bg-slate-100 font-sans">
+          <div className="max-w-5xl mx-auto px-4 py-8">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-6">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <button onClick={onBack} className="flex items-center gap-1.5 text-slate-600 hover:text-slate-800 font-bold text-sm border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50 transition">
+                    <IcBack /> 顧客一覧へ
+                  </button>
+                  <div>
+                    <h1 className="text-xl font-black text-slate-800">📋 契約済一覧</h1>
+                    <p className="text-xs text-slate-500">契約完了したお客様の一覧</p>
+                  </div>
+                </div>
+                <span className="bg-purple-100 text-purple-700 font-black text-sm px-3 py-1.5 rounded-full">{customers.length} 件</span>
+              </div>
+            </div>
+            <div className="mb-4">
+              <input
+                className="w-full p-3 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                placeholder="🔍 お客様名・担当者名・拠点で検索..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <p className="text-xs text-slate-400 mb-3 px-1">{sorted.length} 件</p>
+            {sorted.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-slate-200 p-16 text-center">
+                <div className="text-5xl mb-4">🏆</div>
+                <p className="text-slate-500 font-bold">{search ? '検索結果が見つかりません' : '契約済のお客様はまだいません'}</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {sorted.map(c => (
+                  <div key={c.id} className="bg-white rounded-xl border border-purple-200 shadow-sm hover:shadow-md transition overflow-hidden border-l-4 border-l-purple-500">
+                    <div className="flex items-center gap-4 p-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-lg font-black text-slate-800">{c.customerName} 様</span>
+                          <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">{c.belong}</span>
+                          <span className="bg-purple-100 text-purple-700 text-xs font-bold px-2 py-0.5 rounded-full">契約済</span>
+                        </div>
+                        <div className="flex items-center gap-4 mt-1 text-sm text-slate-500 flex-wrap">
+                          <span>担当: <span className="font-bold text-slate-700">{c.staffName}</span></span>
+                          {c.status?.contractDate && (
+                            <>
+                              <span className="text-slate-300">|</span>
+                              <span>契約日: <span className="font-bold text-purple-700">{c.status.contractDate}</span></span>
+                            </>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {['person','money','time','rival'].map((k,i) => {
+                            const labels = ['人物','金','時','敵'];
+                            return c.eval?.[k] && (
+                              <span key={k} className={`text-xs font-bold px-1.5 py-0.5 rounded border ${
+                                c.eval[k] === '○' ? 'border-green-300 text-green-700' :
+                                c.eval[k] === '△' ? 'border-yellow-300 text-yellow-700' : 'border-red-300 text-red-600'}`}>
+                                {labels[i]} {c.eval[k]}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <button onClick={() => onEdit(c.id)}
+                        className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1.5 hover:bg-purple-700 transition flex-shrink-0">
+                        <IcEdit /> 開く
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <footer className="mt-10 text-center text-slate-400 text-[10px] pb-6">
+              <p>© G-House Internal Sales System | Version Final</p>
+            </footer>
+          </div>
+        </div>
+      );
+    };
+
     // ======== 顧客一覧画面 ========
-    const CustomerList = ({ customers, onNew, onEdit, onDelete, onLogout, userEmail, dbLoading, branches, onAddBranch, onDeleteBranch }) => {
+    const CustomerList = ({ customers, onNew, onEdit, onDelete, dbLoading, branches, onAddBranch, onDeleteBranch, contractCount, onGoContracts }) => {
       const [search, setSearch] = useState('');
       const [deleteTarget, setDeleteTarget] = useState(null);
       const [selectedBranch, setSelectedBranch] = useState('all');
       const [showBranchMgr, setShowBranchMgr] = useState(false);
       const [selectedStaff, setSelectedStaff] = useState('all');
       const [selectedStatus, setSelectedStatus] = useState('all');
+      const [selectedRank, setSelectedRank] = useState('all');
 
       const staffOptions = [...new Set(customers.map(c => c.staffName).filter(Boolean))].sort();
 
@@ -448,11 +538,9 @@
         const matchSearch = c.customerName.includes(search) || c.staffName.includes(search) || c.belong.includes(search);
         const matchBranch = selectedBranch === 'all' || c.belong === selectedBranch;
         const matchStaff = selectedStaff === 'all' || c.staffName === selectedStaff;
-        const matchStatus = selectedStatus === 'all'
-          || (selectedStatus === '限定会員' && (c.status?.rankA || c.status?.rankB || c.status?.rankC || c.status?.rankD))
-          || (selectedStatus === '建築申込' && c.status?.applyBuilding)
-          || (selectedStatus === '契約' && c.status?.contract);
-        return matchSearch && matchBranch && matchStaff && matchStatus;
+        const matchStatus = selectedStatus === 'all' || c.status?.customerStatus === selectedStatus;
+        const matchRank = selectedRank === 'all' || c.status?.rank === selectedRank;
+        return matchSearch && matchBranch && matchStaff && matchStatus && matchRank;
       });
 
       return (
@@ -484,6 +572,11 @@
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button onClick={onGoContracts}
+                    className="border border-purple-300 text-purple-700 bg-purple-50 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-purple-100 transition">
+                    📋 契約済
+                    {contractCount > 0 && <span className="bg-purple-600 text-white text-xs font-black px-1.5 py-0.5 rounded-full">{contractCount}</span>}
+                  </button>
                   <button onClick={onNew} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 transition shadow-md">
                     <IcPlus /> 新規カルテ作成
                   </button>
@@ -492,65 +585,70 @@
             </div>
 
             {/* 拠点フィルター */}
-            <div className="mb-4 flex items-center gap-2">
+            <div className="mb-3 flex items-center gap-2">
               <div className="flex gap-2 flex-wrap flex-1">
-                <button
-                  onClick={() => setSelectedBranch('all')}
-                  className={`px-4 py-2 rounded-full text-sm font-bold transition border ${selectedBranch === 'all' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}`}
-                >
+                <button onClick={() => setSelectedBranch('all')}
+                  className={`px-4 py-2 rounded-full text-sm font-bold transition border ${selectedBranch === 'all' ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}`}>
                   全て ({customers.length})
                 </button>
                 {branches.map(b => {
                   const count = customers.filter(c => c.belong === b.name).length;
                   return (
-                    <button
-                      key={b.id}
-                      onClick={() => setSelectedBranch(b.name)}
-                      className={`px-4 py-2 rounded-full text-sm font-bold transition border ${selectedBranch === b.name ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}`}
-                    >
+                    <button key={b.id} onClick={() => setSelectedBranch(b.name)}
+                      className={`px-4 py-2 rounded-full text-sm font-bold transition border ${selectedBranch === b.name ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}`}>
                       {b.name} ({count})
                     </button>
                   );
                 })}
               </div>
-              <button
-                onClick={() => setShowBranchMgr(true)}
-                className="p-2 border border-slate-300 text-slate-500 rounded-xl hover:bg-slate-50 hover:text-slate-700 transition flex-shrink-0"
-                title="拠点を管理"
-              >
+              <button onClick={() => setShowBranchMgr(true)}
+                className="p-2 border border-slate-300 text-slate-500 rounded-xl hover:bg-slate-50 hover:text-slate-700 transition flex-shrink-0" title="拠点を管理">
                 <IcSettings />
               </button>
             </div>
 
-            {/* 検索 */}
-            <div className="mb-4">
+            {/* 検索・フィルターバー */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-4">
               <input
-                className="w-full p-3 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
-                placeholder="🔍 お客様名・担当者名・拠点で検索..."
+                className="w-full p-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 mb-3"
+                placeholder="🔍 お客様名・担当者名で検索..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
               />
-            </div>
-
-            {/* 担当・状態フィルター */}
-            <div className="mb-4 flex gap-3 flex-wrap">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500 font-bold whitespace-nowrap">担当</span>
-                <select value={selectedStaff} onChange={e => setSelectedStaff(e.target.value)}
-                  className="text-sm border border-slate-300 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                  <option value="all">全員</option>
-                  {staffOptions.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500 font-bold whitespace-nowrap">状態</span>
-                <select value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)}
-                  className="text-sm border border-slate-300 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                  <option value="all">全て</option>
-                  <option value="限定会員">限定会員</option>
-                  <option value="建築申込">建築申込</option>
-                  <option value="契約">契約</option>
-                </select>
+              <div className="flex gap-3 flex-wrap items-center">
+                <span className="text-xs font-bold text-slate-400 flex-shrink-0">フィルター</span>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs text-slate-500 font-bold whitespace-nowrap">担当</label>
+                  <select value={selectedStaff} onChange={e => setSelectedStaff(e.target.value)}
+                    className="text-sm border border-slate-300 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="all">全員</option>
+                    {staffOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs text-slate-500 font-bold whitespace-nowrap">状態</label>
+                  <select value={selectedStatus} onChange={e => setSelectedStatus(e.target.value)}
+                    className="text-sm border border-slate-300 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="all">全て</option>
+                    <option value="限定会員">限定会員</option>
+                    <option value="建築申込">建築申込</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-xs text-slate-500 font-bold whitespace-nowrap">ランク</label>
+                  <select value={selectedRank} onChange={e => setSelectedRank(e.target.value)}
+                    className="text-sm border border-slate-300 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="all">全て</option>
+                    <option value="A">ランクA</option>
+                    <option value="B">ランクB</option>
+                    <option value="C">ランクC</option>
+                    <option value="D">ランクD</option>
+                  </select>
+                </div>
+                {(selectedStaff !== 'all' || selectedStatus !== 'all' || selectedRank !== 'all') && (
+                  <button onClick={() => { setSelectedStaff('all'); setSelectedStatus('all'); setSelectedRank('all'); }}
+                    className="text-xs text-blue-600 font-bold hover:underline">クリア</button>
+                )}
               </div>
             </div>
 
@@ -576,37 +674,22 @@
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-lg font-black text-slate-800">{c.customerName} 様</span>
                           <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">{c.belong}</span>
+                          {c.status?.customerStatus && (
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                              c.status.customerStatus === '建築申込' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                            }`}>
+                              {c.status.customerStatus}{c.status.rank ? `（${c.status.rank}）` : ''}
+                            </span>
+                          )}
                         </div>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-slate-500">
+                        <div className="flex items-center gap-4 mt-1 text-sm text-slate-500 flex-wrap">
                           <span>担当: <span className="font-bold text-slate-700">{c.staffName}</span></span>
                           <span className="text-slate-300">|</span>
                           <span>作成: {new Date(c.createdAt).toLocaleDateString('ja-JP')}</span>
                           <span className="text-slate-300">|</span>
                           <span>更新: {new Date(c.updatedAt).toLocaleDateString('ja-JP')} {new Date(c.updatedAt).toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'})}</span>
                         </div>
-                        {/* 状態・評価バッジ */}
                         <div className="flex flex-wrap gap-1 mt-1.5">
-                          {['A','B','C','D'].map(r => c.status?.[`rank${r}`] && (
-                            <span key={r} className={`text-xs font-bold px-1.5 py-0.5 rounded ${
-                              c.status[`rank${r}`] === '○' ? 'bg-green-100 text-green-700' :
-                              c.status[`rank${r}`] === '△' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'}`}>
-                              限定{r} {c.status[`rank${r}`]}
-                            </span>
-                          ))}
-                          {c.status?.applyBuilding && (
-                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
-                              c.status.applyBuilding === '○' ? 'bg-blue-100 text-blue-700' :
-                              c.status.applyBuilding === '△' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'}`}>
-                              建築申込 {c.status.applyBuilding}
-                            </span>
-                          )}
-                          {c.status?.contract && (
-                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${
-                              c.status.contract === '○' ? 'bg-purple-100 text-purple-700' :
-                              c.status.contract === '△' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-600'}`}>
-                              契約 {c.status.contract}
-                            </span>
-                          )}
                           {['person','money','time','rival'].map((k,i) => {
                             const labels = ['人物','金','時','敵'];
                             return c.eval?.[k] && (
@@ -618,9 +701,6 @@
                             );
                           })}
                         </div>
-                        {c.karteData.sheetHeader.targetDate && (
-                          <span className="text-xs text-orange-600 font-bold mt-1 inline-block">契約目標日: {c.karteData.sheetHeader.targetDate}　ランク: {c.karteData.sheetHeader.rank}</span>
-                        )}
                       </div>
                       {/* 操作ボタン */}
                       <div className="flex items-center gap-2 flex-shrink-0">
@@ -818,25 +898,51 @@
                   {statusSaving ? '保存中...' : '保存'}
                 </button>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
-                <div>
-                  <p className="text-xs font-bold text-slate-500 mb-1.5">限定会員</p>
-                  <div className="space-y-1">
-                    <OATSelector label="ランクA" value={statusData.rankA} onChange={v => setStatusData(p => ({...p, rankA: v}))} />
-                    <OATSelector label="ランクB" value={statusData.rankB} onChange={v => setStatusData(p => ({...p, rankB: v}))} />
-                    <OATSelector label="ランクC" value={statusData.rankC} onChange={v => setStatusData(p => ({...p, rankC: v}))} />
-                    <OATSelector label="ランクD" value={statusData.rankD} onChange={v => setStatusData(p => ({...p, rankD: v}))} />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                {/* 状態・ランク・契約日 */}
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 mb-2">お客様の状態</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {['限定会員', '建築申込', '契約'].map(s => (
+                        <button key={s} type="button"
+                          onClick={() => setStatusData(p => ({...p, customerStatus: p.customerStatus === s ? '' : s, rank: s !== '限定会員' ? '' : p.rank, contractDate: s !== '契約' ? '' : p.contractDate}))}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition ${
+                            statusData.customerStatus === s
+                              ? s === '契約' ? 'bg-purple-600 text-white border-purple-600'
+                                : s === '建築申込' ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-green-600 text-white border-green-600'
+                              : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'
+                          }`}>{s}</button>
+                      ))}
+                    </div>
                   </div>
+                  {statusData.customerStatus === '限定会員' && (
+                    <div>
+                      <p className="text-xs text-slate-500 font-bold mb-1.5">ランク</p>
+                      <div className="flex gap-2">
+                        {['A','B','C','D'].map(r => (
+                          <button key={r} type="button"
+                            onClick={() => setStatusData(p => ({...p, rank: p.rank === r ? '' : r}))}
+                            className={`w-10 h-10 rounded-lg text-sm font-bold border transition ${
+                              statusData.rank === r ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'
+                            }`}>{r}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {statusData.customerStatus === '契約' && (
+                    <div>
+                      <p className="text-xs text-slate-500 font-bold mb-1.5">契約日</p>
+                      <input type="date" value={statusData.contractDate || ''}
+                        onChange={e => setStatusData(p => ({...p, contractDate: e.target.value}))}
+                        className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                  )}
                 </div>
+                {/* 人物金時敵 */}
                 <div>
-                  <p className="text-xs font-bold text-slate-500 mb-1.5">進捗</p>
-                  <div className="space-y-1">
-                    <OATSelector label="建築申込" value={statusData.applyBuilding} onChange={v => setStatusData(p => ({...p, applyBuilding: v}))} />
-                    <OATSelector label="契約" value={statusData.contract} onChange={v => setStatusData(p => ({...p, contract: v}))} />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-500 mb-1.5">人物金時敵</p>
+                  <p className="text-xs font-bold text-slate-500 mb-2">人物金時敵</p>
                   <div className="space-y-1">
                     <OATSelector label="人物" value={evalData.person} onChange={v => setEvalData(p => ({...p, person: v}))} />
                     <OATSelector label="金" value={evalData.money} onChange={v => setEvalData(p => ({...p, money: v}))} />
@@ -1366,6 +1472,7 @@
       const [currentId, setCurrentId]   = useState(null);
       const [showNewModal, setShowNewModal] = useState(false);
       const [dbLoading, setDbLoading]   = useState(false);
+      const [returnScreen, setReturnScreen] = useState('list');
 
       // 起動時にカルテ一覧と拠点一覧を取得
       useEffect(() => {
@@ -1373,17 +1480,26 @@
         loadBranches();
       }, []);
 
-      const fromDB = (key, val) => ({
-        id:           key,
-        staffName:    val.staffName    || '',
-        belong:       val.belong       || '',
-        customerName: val.customerName || '',
-        createdAt:    val.createdAt    || new Date().toISOString(),
-        updatedAt:    val.updatedAt    || new Date().toISOString(),
-        status:       val.status       || emptyStatus(),
-        eval:         val.eval         || emptyEval(),
-        karteData:    val.karteData    || emptyKarteData(),
-      });
+      const fromDB = (key, val) => {
+        let status = val.status || emptyStatus();
+        // 旧フォーマット（rankA/rankB等）から新フォーマットへ移行
+        if ('rankA' in status || 'rankB' in status || 'applyBuilding' in status) {
+          const r = ['A','B','C','D'].find(r => status[`rank${r}`]) || '';
+          const cs = status.contract ? '契約' : status.applyBuilding ? '建築申込' : r ? '限定会員' : '';
+          status = { customerStatus: cs, rank: r, contractDate: '' };
+        }
+        return {
+          id:           key,
+          staffName:    val.staffName    || '',
+          belong:       val.belong       || '',
+          customerName: val.customerName || '',
+          createdAt:    val.createdAt    || new Date().toISOString(),
+          updatedAt:    val.updatedAt    || new Date().toISOString(),
+          status,
+          eval:         val.eval         || emptyEval(),
+          karteData:    val.karteData    || emptyKarteData(),
+        };
+      };
 
       const loadCustomers = async () => {
         setDbLoading(true);
@@ -1443,7 +1559,7 @@
         } catch (e) { return e.message; }
       };
 
-      const handleEdit = (id) => { setCurrentId(id); setScreen('edit'); };
+      const handleEdit = (id, from = 'list') => { setReturnScreen(from); setCurrentId(id); setScreen('edit'); };
 
       const handleSave = async (id, karteData) => {
         try {
@@ -1477,25 +1593,34 @@
         } catch (e) { return e.message; }
       };
 
-      const handleBack = () => { setScreen('list'); setCurrentId(null); };
+      const handleBack = () => { setScreen(returnScreen); setCurrentId(null); };
 
       const currentCustomer = customers.find(c => c.id === currentId);
+      const activeCustomers = customers.filter(c => c.status?.customerStatus !== '契約');
+      const contractedCustomers = customers.filter(c => c.status?.customerStatus === '契約');
 
       return (
         <>
           {showNewModal && <NewCustomerModal onClose={() => setShowNewModal(false)} onCreate={handleCreate} />}
           {screen === 'list' && (
             <CustomerList
-              customers={customers}
+              customers={activeCustomers}
               onNew={() => setShowNewModal(true)}
               onEdit={handleEdit}
               onDelete={handleDelete}
-              onLogout={() => {}}
-              userEmail=""
               dbLoading={dbLoading}
               branches={branches}
               onAddBranch={handleAddBranch}
               onDeleteBranch={handleDeleteBranch}
+              contractCount={contractedCustomers.length}
+              onGoContracts={() => setScreen('contracts')}
+            />
+          )}
+          {screen === 'contracts' && (
+            <ContractList
+              customers={contractedCustomers}
+              onEdit={(id) => handleEdit(id, 'contracts')}
+              onBack={() => setScreen('list')}
             />
           )}
           {screen === 'edit' && currentCustomer && (
